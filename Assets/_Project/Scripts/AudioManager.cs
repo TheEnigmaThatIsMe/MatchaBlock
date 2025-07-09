@@ -20,7 +20,7 @@ namespace Match3 {
         public void PlayDeselect() => audioSource.PlayOneShot(deselect);
         public void PlayMatch() => audioSource.PlayOneShot(match);
         public void PlayNoMatch() => audioSource.PlayOneShot(noMatch);
-        public void PlayWoosh() => PlayRandomPitch(woosh);
+        public void PlayWoosh() => audioSource.PlayOneShot(woosh);
         public void PlayPop() => PlayRandomPitch(pop);
 
         void PlayRandomPitch(AudioClip audioClip) {

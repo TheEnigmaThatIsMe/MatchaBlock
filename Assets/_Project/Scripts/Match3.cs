@@ -108,13 +108,14 @@ namespace Match3 {
         }
 
         IEnumerator ExplodeGems(List<Vector2Int> matches) {
-            audioManager.PlayPop();
+            
 
             foreach (var match in matches) {
                 var gem = grid.GetValue(match.x, match.y).GetValue();
                 grid.SetValue(match.x, match.y, null);
 
                 ExplodeVFX(match);
+                audioManager.PlayPop();
                 
                 gem.transform.DOPunchScale(Vector3.one * 0.1f, 0.1f, 1, 0.5f);
                 
