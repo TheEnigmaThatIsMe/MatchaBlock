@@ -81,13 +81,28 @@ namespace Match3 {
                 yield return StartCoroutine(SwapGems(gridPosB, gridPosA));
                 audioManager.PlayNoMatch();
             } else {
-                // Process matches
-                yield return StartCoroutine(ExplodeGems(matches));
-                yield return StartCoroutine(MakeGemsFall());
-                yield return StartCoroutine(FillEmptySpots());
+                // Process initial matches and any chain reactions
+                yield return StartCoroutine(ProcessMatches(matches));
             }
 
             DeselectGem();
+        }
+
+        IEnumerator ProcessMatches(List<Vector2Int> initialMatches) {
+            List<Vector2Int> currentMatches = initialMatches;
+            
+            while (currentMatches.Count > 0) {
+                // Process current set of matches
+                yield return StartCoroutine(ExplodeGems(currentMatches));
+                yield return StartCoroutine(MakeGemsFall());
+                yield return StartCoroutine(FillEmptySpots());
+                
+                // Check for any remaining matches
+                currentMatches = FindMatches();
+                if (currentMatches.Count > 0) {
+                    audioManager.PlayMatch();
+                }
+            }
         }
 
         IEnumerator FillEmptySpots() {
@@ -96,7 +111,16 @@ namespace Match3 {
                     if (grid.GetValue(x, y) == null) {
                         CreateGem(x, y);
                         audioManager.PlayPop();
-                        yield return new WaitForSeconds(0.1f);;
+                        yield return new WaitForSeconds(0.1f);
+                        
+                        // Check for matches after each new gem is created
+                        var matches = FindMatches();
+                        if (matches.Count > 0) {
+                            yield return StartCoroutine(ProcessMatches(matches));
+                            // After processing matches, we need to restart filling from the beginning
+                            x = 0;
+                            y = -1; // Will be incremented to 0 by the loop
+                        }
                     }
                 }
             }
@@ -129,6 +153,14 @@ namespace Match3 {
                         audioManager.PlayWoosh();
                     }
                     yield return new WaitForSeconds(0.5f);
+                    
+                    // Check for matches after gems fall in this column
+                    var matches = FindMatches();
+                    if (matches.Count > 0) {
+                        yield return StartCoroutine(ProcessMatches(matches));
+                        // After processing matches, we need to stop since the grid has changed
+                        yield break;
+                    }
                 }
             }
         }
