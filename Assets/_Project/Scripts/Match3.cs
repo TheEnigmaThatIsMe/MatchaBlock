@@ -209,6 +209,7 @@ namespace Match3 {
         }
 
         IEnumerator SwapGems(Vector2Int gridPosA, Vector2Int gridPosB) {
+            DeselectGem();
             var gridObjectA = grid.GetValue(gridPosA.x, gridPosA.y);
             var gridObjectB = grid.GetValue(gridPosB.x, gridPosB.y);
             
@@ -247,8 +248,19 @@ namespace Match3 {
             grid.SetValue(x, y, gridObject);
         }
 
-        void DeselectGem() => selectedGem = new Vector2Int(-1, -1);
-        void SelectGem(Vector2Int gridPos) => selectedGem = gridPos;
+        void DeselectGem() {
+            if (selectedGem != Vector2Int.one * -1) {
+                var gem = grid.GetValue(selectedGem.x, selectedGem.y)?.GetValue();
+                gem?.SetHighlight(false);
+            }
+            selectedGem = Vector2Int.one * -1;
+        }
+
+        void SelectGem(Vector2Int gridPos) {
+            selectedGem = gridPos;
+            var gem = grid.GetValue(gridPos.x, gridPos.y)?.GetValue();
+            gem?.SetHighlight(true);
+        }
 
         bool IsEmptyPosition(Vector2Int gridPosition) => grid.GetValue(gridPosition.x, gridPosition.y) == null;
 
