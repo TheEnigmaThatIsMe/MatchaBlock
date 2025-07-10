@@ -85,24 +85,32 @@ namespace Match3 {
         }
 
         IEnumerator MakeGemsFall() {
-            // TODO: Make this more efficient
             for (var x = 0; x < width; x++) {
+                int shiftDown = 0;
+                List<(Gem gem, int distance)> fallingGems = new();
+
+                // Process column from bottom to top
                 for (var y = 0; y < height; y++) {
                     if (grid.GetValue(x, y) == null) {
-                        for (var i = y + 1; i < height; i++) {
-                            if (grid.GetValue(x, i) != null) {
-                                var gem = grid.GetValue(x, i).GetValue();
-                                grid.SetValue(x, y, grid.GetValue(x, i));
-                                grid.SetValue(x, i, null);
-                                gem.transform
-                                    .DOLocalMove(grid.GetWorldPositionCenter(x, y), 0.5f)
-                                    .SetEase(ease);
-                                audioManager.PlayWoosh();
-                                yield return new WaitForSeconds(0.1f);
-                                break;
-                            }
-                        }
+                        shiftDown++;
                     }
+                    else if (shiftDown > 0) {
+                        var gem = grid.GetValue(x, y).GetValue();
+                        fallingGems.Add((gem, shiftDown));
+                        grid.SetValue(x, y - shiftDown, grid.GetValue(x, y));
+                        grid.SetValue(x, y, null);
+                    }
+                }
+
+                // Animate all gems in the column simultaneously
+                if (fallingGems.Count > 0) {
+                    foreach (var (gem, distance) in fallingGems) {
+                        gem.transform
+                            .DOLocalMove(gem.transform.localPosition + Vector3.down * (cellSize * distance), 0.5f)
+                            .SetEase(ease);
+                        audioManager.PlayWoosh();
+                    }
+                    yield return new WaitForSeconds(0.5f);
                 }
             }
         }
