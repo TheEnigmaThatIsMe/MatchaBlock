@@ -262,22 +262,105 @@ namespace Match3 {
             yield return moveA.WaitForCompletion();
         }
 
+        void CreateGem(int x, int y, bool checkForMatches = true) {
+            GemType selectedType;
+            if (checkForMatches) {
+                // Get a list of gem types that wouldn't create a match
+                var validTypes = GetValidGemTypes(x, y);
+                selectedType = validTypes[Random.Range(0, validTypes.Count)];
+            } else {
+                selectedType = gemTypes[Random.Range(0, gemTypes.Length)];
+            }
+
+            var gem = Instantiate(gemPrefab, grid.GetWorldPositionCenter(x, y), Quaternion.identity, transform);
+            gem.SetType(selectedType);
+            var gridObject = new GridObject<Gem>(grid, x, y);
+            gridObject.SetValue(gem);
+            grid.SetValue(x, y, gridObject);
+        }
+
+        List<GemType> GetValidGemTypes(int x, int y) {
+            List<GemType> validTypes = new List<GemType>();
+            
+            // Try each gem type
+            foreach (var gemType in gemTypes) {
+                if (!WouldCreateMatch(x, y, gemType)) {
+                    validTypes.Add(gemType);
+                }
+            }
+            
+            // If no valid types (shouldn't happen with 5+ gem types), return all types
+            if (validTypes.Count == 0) {
+                validTypes.AddRange(gemTypes);
+            }
+            
+            return validTypes;
+        }
+
+        bool WouldCreateMatch(int x, int y, GemType typeToCheck) {
+            // Check horizontal matches
+            if (x >= 2) {
+                var gem1 = grid.GetValue(x - 2, y)?.GetValue();
+                var gem2 = grid.GetValue(x - 1, y)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+            if (x >= 1 && x < width - 1) {
+                var gem1 = grid.GetValue(x - 1, y)?.GetValue();
+                var gem2 = grid.GetValue(x + 1, y)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+            if (x < width - 2) {
+                var gem1 = grid.GetValue(x + 1, y)?.GetValue();
+                var gem2 = grid.GetValue(x + 2, y)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+
+            // Check vertical matches
+            if (y >= 2) {
+                var gem1 = grid.GetValue(x, y - 2)?.GetValue();
+                var gem2 = grid.GetValue(x, y - 1)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+            if (y >= 1 && y < height - 1) {
+                var gem1 = grid.GetValue(x, y - 1)?.GetValue();
+                var gem2 = grid.GetValue(x, y + 1)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+            if (y < height - 2) {
+                var gem1 = grid.GetValue(x, y + 1)?.GetValue();
+                var gem2 = grid.GetValue(x, y + 2)?.GetValue();
+                if (gem1 != null && gem2 != null &&
+                    gem1.GetType() == typeToCheck && gem2.GetType() == typeToCheck) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         void InitializeGrid() {
             grid = GridSystem2D<GridObject<Gem>>.VerticalGrid(width, height, cellSize, originPosition, debug);
             
             for (var x = 0; x < width; x++) {
                 for (var y = 0; y < height; y++) {
-                    CreateGem(x, y);
+                    CreateGem(x, y, true); // Use match checking for initial population
                 }
             }
-        }
-
-        void CreateGem(int x, int y) {
-            var gem = Instantiate(gemPrefab, grid.GetWorldPositionCenter(x, y), Quaternion.identity, transform);
-            gem.SetType(gemTypes[Random.Range(0, gemTypes.Length)]);
-            var gridObject = new GridObject<Gem>(grid, x, y);
-            gridObject.SetValue(gem);
-            grid.SetValue(x, y, gridObject);
         }
 
         void DeselectGem() {
