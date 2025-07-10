@@ -12,6 +12,12 @@ namespace Match3 {
         [SerializeField] Vector3 originPosition = Vector3.zero;
         [SerializeField] bool debug = true;
         
+        // Public properties for CameraController
+        public int Width => width;
+        public int Height => height;
+        public float CellSize => cellSize;
+        public Vector3 OriginPosition => originPosition;
+
         [SerializeField] Gem gemPrefab;
         [SerializeField] GemType[] gemTypes;
         [SerializeField] Ease ease = Ease.InQuad;
@@ -49,25 +55,37 @@ namespace Match3 {
             } else if (selectedGem == Vector2Int.one * -1) {
                 SelectGem(gridPos);
                 audioManager.PlayClick();
-            } else {
+            } else if (AreGemsAdjacent(selectedGem, gridPos)) {
                 StartCoroutine(RunGameLoop(selectedGem, gridPos));
+            } else {
+                // Not adjacent, deselect current and select new
+                DeselectGem();
+                SelectGem(gridPos);
+                audioManager.PlayClick();
             }
         }
 
+        bool AreGemsAdjacent(Vector2Int posA, Vector2Int posB) {
+            return Mathf.Abs(posA.x - posB.x) + Mathf.Abs(posA.y - posB.y) == 1;
+        }
+
         IEnumerator RunGameLoop(Vector2Int gridPosA, Vector2Int gridPosB) {
+            // Perform the swap
             yield return StartCoroutine(SwapGems(gridPosA, gridPosB));
             
-            // Matches?
+            // Check for matches
             List<Vector2Int> matches = FindMatches();
-            // TODO: Calculate score
-            // Make Gems explode
-            yield return StartCoroutine(ExplodeGems(matches));
-            // Make gems fall
-            yield return StartCoroutine(MakeGemsFall());
-            // Fill empty spots
-            yield return StartCoroutine(FillEmptySpots());
             
-            // TODO: Check if game is over
+            if (matches.Count == 0) {
+                // No matches found, swap back
+                yield return StartCoroutine(SwapGems(gridPosB, gridPosA));
+                audioManager.PlayNoMatch();
+            } else {
+                // Process matches
+                yield return StartCoroutine(ExplodeGems(matches));
+                yield return StartCoroutine(MakeGemsFall());
+                yield return StartCoroutine(FillEmptySpots());
+            }
 
             DeselectGem();
         }
@@ -194,18 +212,21 @@ namespace Match3 {
             var gridObjectA = grid.GetValue(gridPosA.x, gridPosA.y);
             var gridObjectB = grid.GetValue(gridPosB.x, gridPosB.y);
             
-            // See README for a link to the DOTween asset
-            gridObjectA.GetValue().transform
-                .DOLocalMove(grid.GetWorldPositionCenter(gridPosB.x, gridPosB.y), 0.5f)
-                .SetEase(ease);
-            gridObjectB.GetValue().transform
-                .DOLocalMove(grid.GetWorldPositionCenter(gridPosA.x, gridPosA.y), 0.5f)
+            // Animate both gems simultaneously
+            var moveA = gridObjectA.GetValue().transform
+                .DOLocalMove(grid.GetWorldPositionCenter(gridPosB.x, gridPosB.y), 0.3f)
                 .SetEase(ease);
             
+            var moveB = gridObjectB.GetValue().transform
+                .DOLocalMove(grid.GetWorldPositionCenter(gridPosA.x, gridPosA.y), 0.3f)
+                .SetEase(ease);
+            
+            // Update grid positions
             grid.SetValue(gridPosA.x, gridPosA.y, gridObjectB);
             grid.SetValue(gridPosB.x, gridPosB.y, gridObjectA);
             
-            yield return new WaitForSeconds(0.5f);
+            // Wait for both animations to complete
+            yield return moveA.WaitForCompletion();
         }
 
         void InitializeGrid() {
