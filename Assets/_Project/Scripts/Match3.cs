@@ -128,7 +128,9 @@ namespace Match3 {
         void ExplodeVFX(Vector2Int match) {
             // TODO: Pool
             var fx = Instantiate(explosion, transform);
-            fx.transform.position = grid.GetWorldPositionCenter(match.x, match.y);
+            var position = grid.GetWorldPositionCenter(match.x, match.y);
+            position.z = -1f; // Position the effect in front of the gems
+            fx.transform.position = position;
             Destroy(fx, 5f);
         }
 
