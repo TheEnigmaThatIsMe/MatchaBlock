@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.Events;
 using Random = UnityEngine.Random;
 
 namespace Match3 {
@@ -22,6 +23,21 @@ namespace Match3 {
         [SerializeField] GemType[] gemTypes;
         [SerializeField] Ease ease = Ease.InQuad;
         [SerializeField] GameObject explosion;
+
+        // Scoring system
+        private int currentScore;
+        private int highScore;
+        public int CurrentScore => currentScore;
+        public int HighScore => highScore;
+        public UnityEvent<int> OnScoreChanged = new UnityEvent<int>();
+        public UnityEvent<int> OnHighScoreChanged = new UnityEvent<int>();
+        public UnityEvent<int, Vector3> OnScoreBonus = new UnityEvent<int, Vector3>(); // Bonus points and world position
+
+        [Header("Scoring")]
+        [SerializeField] private int basePoints = 10;
+        [SerializeField] private int bonusPointsPerExtraGem = 5;
+        [SerializeField] private int minGemsForBonus = 4;
+        private const string HighScoreKey = "Match3HighScore";
         
         InputReader inputReader;
         AudioManager audioManager;
@@ -33,6 +49,8 @@ namespace Match3 {
         void Awake() {
             inputReader = GetComponent<InputReader>();
             audioManager = GetComponent<AudioManager>();
+            currentScore = 0;
+            LoadHighScore();
         }
         
         void Start() {
@@ -166,7 +184,12 @@ namespace Match3 {
         }
 
         IEnumerator ExplodeGems(List<Vector2Int> matches) {
-            
+            // Calculate center position of the match for bonus text
+            Vector3 matchCenter = Vector3.zero;
+            foreach (var match in matches) {
+                matchCenter += grid.GetWorldPositionCenter(match.x, match.y);
+            }
+            matchCenter /= matches.Count;
 
             foreach (var match in matches) {
                 var gem = grid.GetValue(match.x, match.y).GetValue();
@@ -180,6 +203,15 @@ namespace Match3 {
                 yield return new WaitForSeconds(0.1f);
                 
                 Destroy(gem.gameObject, 0.1f);
+            }
+
+            // Calculate and add score with bonus
+            int matchScore = CalculateMatchScore(matches.Count);
+            AddScore(matchScore);
+
+            // If this was a large match, trigger the bonus event
+            if (matches.Count >= minGemsForBonus) {
+                OnScoreBonus.Invoke(matchScore, matchCenter);
             }
         }
 
@@ -381,6 +413,39 @@ namespace Match3 {
 
         bool IsValidPosition(Vector2 gridPosition) {
             return gridPosition.x >= 0 && gridPosition.x < width && gridPosition.y >= 0 && gridPosition.y < height;
+        }
+
+        void AddScore(int points) {
+            currentScore += points;
+            OnScoreChanged.Invoke(currentScore);
+
+            if (currentScore > highScore) {
+                highScore = currentScore;
+                OnHighScoreChanged.Invoke(highScore);
+                SaveHighScore();
+            }
+        }
+
+        void LoadHighScore() {
+            highScore = PlayerPrefs.GetInt(HighScoreKey, 0);
+        }
+
+        void SaveHighScore() {
+            PlayerPrefs.SetInt(HighScoreKey, highScore);
+            PlayerPrefs.Save();
+        }
+
+        int CalculateMatchScore(int matchSize) {
+            int score = matchSize * basePoints; // Base score
+            
+            // Add bonus points for matches larger than minGemsForBonus
+            if (matchSize >= minGemsForBonus) {
+                int extraGems = matchSize - minGemsForBonus + 1;
+                int bonus = extraGems * bonusPointsPerExtraGem;
+                score += bonus;
+            }
+            
+            return score;
         }
     }
 }
